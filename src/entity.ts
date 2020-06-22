@@ -917,6 +917,7 @@ export namespace entity {
     wrapNumbers?: boolean | IntegerTypeCastOptions
   ) {
     return results.map(result => {
+      console.log('formatArray', wrapNumbers);
       const ent = entity.entityFromEntityProto(result.entity!, wrapNumbers);
       ent[entity.KEY_SYMBOL] = entity.keyFromKeyProto(result.entity!.key!);
       return ent;
