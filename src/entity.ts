@@ -706,7 +706,6 @@ export namespace entity {
     for (const property in properties) {
       const value = properties[property];
       value.propertyName = property;
-      console.log('entityFromEntityProto', wrapNumbers);
       entityObject[property] = entity.decodeValueProto(value, wrapNumbers);
     }
 
