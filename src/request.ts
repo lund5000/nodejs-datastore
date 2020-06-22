@@ -730,6 +730,8 @@ class DatastoreRequest {
    *   });
    */
   runQueryStream(query: Query, options: RunQueryStreamOptions = {}): Transform {
+    console.trace();
+    console.log('runQueryStream', options);
     query = extend(true, new Query(), query);
 
     const makeRequest = (query: Query) => {
