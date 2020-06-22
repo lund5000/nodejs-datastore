@@ -786,6 +786,7 @@ class DatastoreRequest {
 
       if (resp.batch.entityResults) {
         try {
+          console.log('onResultSet', options);
           entities = entity.formatArray(
             resp.batch.entityResults,
             options.wrapNumbers
