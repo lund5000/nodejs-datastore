@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import * as pjy from '@google-cloud/projectify';
 import * as pfy from '@google-cloud/promisify';
 import * as assert from 'assert';
-import {describe, it} from 'mocha';
+import {after, afterEach, before, beforeEach, describe, it} from 'mocha';
 import * as extend from 'extend';
 import * as is from 'is';
 import * as proxyquire from 'proxyquire';
 import * as sinon from 'sinon';
 import {Transform} from 'stream';
 
-import {google} from '../proto/datastore';
+import {google} from '../protos/protos';
 import * as ds from '../src';
 import {entity, Entity, KeyProto, EntityProto} from '../src/entity.js';
 import {IntegerTypeCastOptions, Query, QueryProto} from '../src/query.js';
@@ -36,7 +35,7 @@ import {
   GetResponse,
 } from '../src/request';
 
-// tslint:disable-next-line no-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
 
 let promisified = false;
@@ -48,27 +47,19 @@ const fakePfy = Object.assign({}, pfy, {
   },
 });
 
-const fakePjy = {
-  replaceProjectIdToken() {
-    return (pjyOverride || pjy.replaceProjectIdToken).apply(null, arguments);
-  },
-};
-
 let v1FakeClientOverride: Function | null;
 const fakeV1 = {
   FakeClient: class {
-    constructor() {
-      return (v1FakeClientOverride || (() => {})).apply(null, arguments);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructor(...args: any[]) {
+      return (v1FakeClientOverride || (() => {}))(...args);
     }
   },
 };
 
 class FakeQuery extends Query {}
 
-let pjyOverride: Function | null;
-
 describe('Request', () => {
-  // tslint:disable-next-line variable-name
   let Request: typeof ds.DatastoreRequest;
   let request: Any;
   let key: entity.Key;
@@ -77,7 +68,6 @@ describe('Request', () => {
   before(() => {
     Request = proxyquire('../src/request', {
       '@google-cloud/promisify': fakePfy,
-      '@google-cloud/projectify': fakePjy,
       './entity': {entity},
       './query': {Query: FakeQuery},
       './v1': fakeV1,
@@ -89,7 +79,6 @@ describe('Request', () => {
   });
 
   beforeEach(() => {
-    pjyOverride = null;
     key = new entity.Key({
       namespace: 'namespace',
       path: ['Company', 123],
@@ -128,7 +117,7 @@ describe('Request', () => {
 
     it('should format an entity', () => {
       const key = {};
-      // tslint:disable-next-line:no-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const entityObject: any = {data: true};
       entityObject[entity.KEY_SYMBOL] = key;
       const preparedEntityObject = Request.prepareEntityObject_(
@@ -311,10 +300,7 @@ describe('Request', () => {
         done();
       };
 
-      request
-        .createReadStream(key, options)
-        .on('error', done)
-        .emit('reading');
+      request.createReadStream(key, options).on('error', done).emit('reading');
     });
 
     it('should allow setting strong read consistency', done => {
@@ -486,10 +472,7 @@ describe('Request', () => {
           return arr;
         });
 
-        request
-          .createReadStream(key)
-          .on('error', done)
-          .emit('reading');
+        request.createReadStream(key).on('error', done).emit('reading');
       });
 
       describe('should pass `wrapNumbers` to formatArray', () => {
@@ -510,10 +493,7 @@ describe('Request', () => {
         });
 
         it('should pass `wrapNumbers` to formatArray as undefined by default', done => {
-          request
-            .createReadStream(key)
-            .on('error', done)
-            .resume();
+          request.createReadStream(key).on('error', done).resume();
 
           setImmediate(() => {
             wrapNumbersOpts = formtArrayStub.getCall(0).args[1];
@@ -574,10 +554,7 @@ describe('Request', () => {
           done();
         };
 
-        request
-          .createReadStream(key)
-          .on('error', done)
-          .emit('reading');
+        request.createReadStream(key).on('error', done).emit('reading');
       });
 
       it('should push results to the stream', done => {
@@ -882,10 +859,7 @@ describe('Request', () => {
         return {} as QueryProto;
       });
 
-      request
-        .runQueryStream(query)
-        .on('error', done)
-        .emit('reading');
+      request.runQueryStream(query).on('error', done).emit('reading');
     });
 
     it('should make correct request when the stream is ready', done => {
@@ -908,10 +882,7 @@ describe('Request', () => {
         done();
       };
 
-      request
-        .runQueryStream(query)
-        .on('error', done)
-        .emit('reading');
+      request.runQueryStream(query).on('error', done).emit('reading');
     });
 
     it('should allow customization of GAX options', done => {
@@ -925,10 +896,7 @@ describe('Request', () => {
         done();
       };
 
-      request
-        .runQueryStream({}, options)
-        .on('error', done)
-        .emit('reading');
+      request.runQueryStream({}, options).on('error', done).emit('reading');
     });
 
     it('should allow setting strong read consistency', done => {
@@ -1086,16 +1054,13 @@ describe('Request', () => {
           formatArrayStub.restore();
           formatArrayStub = sandbox
             .stub(entity, 'formatArray')
-            .callsFake((array, wrapNumbers) => {
+            .callsFake(array => {
               return array;
             });
         });
 
         it('should pass `wrapNumbers` to formatArray as undefined by default', done => {
-          request
-            .runQueryStream({})
-            .on('error', assert.ifError)
-            .resume();
+          request.runQueryStream({}).on('error', assert.ifError).resume();
 
           setImmediate(() => {
             wrapNumbersOpts = formatArrayStub.getCall(0).args[1];
@@ -1182,7 +1147,7 @@ describe('Request', () => {
           }
         };
 
-        FakeQuery.prototype.start = function(endCursor) {
+        FakeQuery.prototype.start = function (endCursor) {
           assert.strictEqual(
             endCursor,
             apiResponse.batch.endCursor.toString('base64')
@@ -1531,6 +1496,52 @@ describe('Request', () => {
         ],
         done
       );
+    });
+
+    it('should save null value when excludeLargeProperties enabled', done => {
+      const expectedProperties = {
+        stringField: {
+          stringValue: 'string value',
+        },
+        nullField: {
+          nullValue: 0,
+        },
+        arrayField: {
+          arrayValue: {
+            values: [
+              {
+                integerValue: '0',
+              },
+              {
+                nullValue: 0,
+              },
+            ],
+          },
+        },
+        objectField: {
+          nullValue: 0,
+        },
+      };
+
+      request.request_ = (config: RequestConfig, callback: Function) => {
+        assert.deepStrictEqual(
+          config.reqOpts!.mutations![0].upsert!.properties,
+          expectedProperties
+        );
+        callback();
+      };
+
+      const entities = {
+        key: key,
+        data: {
+          stringField: 'string value',
+          nullField: null,
+          arrayField: [0, null],
+          objectField: null,
+        },
+        excludeLargeProperties: true,
+      };
+      request.save(entities, done);
     });
 
     it('should allow customization of GAX options', done => {
@@ -2158,7 +2169,6 @@ describe('Request', () => {
   });
 
   describe('merge', () => {
-    // tslint:disable-next-line: variable-name
     let Transaction: typeof ds.Transaction;
     let transaction: ds.Transaction;
     const PROJECT_ID = 'project-id';
@@ -2194,7 +2204,7 @@ describe('Request', () => {
       request.datastore = {
         transaction: () => transaction,
       };
-      // tslint:disable-next-line: no-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (transaction as any).run = (callback?: Function) => {
         callback!(null);
       };
@@ -2287,6 +2297,38 @@ describe('Request', () => {
         done();
       });
     });
+
+    it('should avoid the rollback exception in transaction.run', done => {
+      sandbox
+        .stub(transaction, 'run')
+        .callsFake((gaxOption, callback?: Function) => {
+          callback = typeof gaxOption === 'function' ? gaxOption : callback!;
+          callback(new Error('Error.'));
+        });
+
+      sandbox
+        .stub(transaction, 'rollback')
+        .rejects(new Error('Rollback Error.'));
+
+      request.merge({key, data: null}, (err: Error) => {
+        assert.strictEqual(err.message, 'Error.');
+        done();
+      });
+    });
+
+    it('should avoid the rollback exception in transaction.get/commit', done => {
+      sandbox.restore();
+      sandbox.stub(transaction, 'get').rejects(new Error('Error.'));
+
+      sandbox
+        .stub(transaction, 'rollback')
+        .rejects(new Error('Rollback Error.'));
+
+      request.merge({key, data: null}, (err: Error) => {
+        assert.strictEqual(err.message, 'Error.');
+        done();
+      });
+    });
   });
 
   describe('request_', () => {
@@ -2362,34 +2404,10 @@ describe('Request', () => {
       done();
     });
 
-    it('should replace the project ID token', done => {
-      const replacedReqOpts = {};
-
-      const expectedReqOpts: Any = Object.assign({}, CONFIG.reqOpts);
-      expectedReqOpts.projectId = request.projectId;
-
-      pjyOverride = (reqOpts: RequestOptions, projectId: string) => {
-        assert.notStrictEqual(reqOpts, CONFIG.reqOpts);
-        assert.deepStrictEqual(reqOpts, expectedReqOpts);
-        assert.strictEqual(projectId, PROJECT_ID);
-        return replacedReqOpts;
-      };
-
-      request.datastore.clients_ = new Map();
-      request.datastore.clients_.set(CONFIG.client, {
-        [CONFIG.method](reqOpts: RequestOptions) {
-          assert.strictEqual(reqOpts, replacedReqOpts);
-          done();
-        },
-      });
-
-      request.request_(CONFIG, assert.ifError);
-    });
-
     it('should send gaxOpts', done => {
       request.datastore.clients_ = new Map();
       request.datastore.clients_.set(CONFIG.client, {
-        // tslint:disable-next-line no-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         [CONFIG.method](_: object, gaxO: any) {
           delete gaxO.headers;
           assert.deepStrictEqual(gaxO, CONFIG.gaxOpts);
@@ -2403,7 +2421,7 @@ describe('Request', () => {
     it('should send google-cloud-resource-prefix', done => {
       request.datastore.clients_ = new Map();
       request.datastore.clients_.set(CONFIG.client, {
-        // tslint:disable-next-line no-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         [CONFIG.method](_: object, gaxO: any) {
           assert.deepStrictEqual(gaxO.headers, {
             'google-cloud-resource-prefix': 'projects/' + PROJECT_ID,

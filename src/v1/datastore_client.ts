@@ -17,16 +17,10 @@
 // ** All changes to this file may be overwritten. **
 
 import * as gax from 'google-gax';
-import {
-  APICallback,
-  Callback,
-  CallOptions,
-  Descriptors,
-  ClientOptions,
-} from 'google-gax';
+import {Callback, CallOptions, Descriptors, ClientOptions} from 'google-gax';
 import * as path from 'path';
 
-import * as protosTypes from '../../protos/protos';
+import * as protos from '../../protos/protos';
 import * as gapicConfig from './datastore_client_config.json';
 
 const version = require('../../../package.json').version;
@@ -43,13 +37,6 @@ const version = require('../../../package.json').version;
  * @memberof v1
  */
 export class DatastoreClient {
-  private _descriptors: Descriptors = {
-    page: {},
-    stream: {},
-    longrunning: {},
-    batching: {},
-  };
-  private _innerApiCalls: {[name: string]: Function};
   private _terminated = false;
   private _opts: ClientOptions;
   private _gaxModule: typeof gax | typeof gax.fallback;
@@ -57,6 +44,13 @@ export class DatastoreClient {
   private _protos: {};
   private _defaults: {[method: string]: gax.CallSettings};
   auth: gax.GoogleAuth;
+  descriptors: Descriptors = {
+    page: {},
+    stream: {},
+    longrunning: {},
+    batching: {},
+  };
+  innerApiCalls: {[name: string]: Function};
   datastoreStub?: Promise<{[name: string]: Function}>;
 
   /**
@@ -101,16 +95,20 @@ export class DatastoreClient {
     }
     opts.servicePath = opts.servicePath || servicePath;
     opts.port = opts.port || port;
+
+    // users can override the config from client side, like retry codes name.
+    // The detailed structure of the clientConfig can be found here: https://github.com/googleapis/gax-nodejs/blob/master/src/gax.ts#L546
+    // The way to override client config for Showcase API:
+    //
+    // const customConfig = {"interfaces": {"google.showcase.v1beta1.Echo": {"methods": {"Echo": {"retry_codes_name": "idempotent", "retry_params_name": "default"}}}}}
+    // const showcaseClient = new showcaseClient({ projectId, customConfig });
     opts.clientConfig = opts.clientConfig || {};
 
-    const isBrowser = typeof window !== 'undefined';
-    if (isBrowser) {
-      opts.fallback = true;
-    }
-    // If we are in browser, we are already using fallback because of the
-    // "browser" field in package.json.
-    // But if we were explicitly requested to use fallback, let's do it now.
-    this._gaxModule = !isBrowser && opts.fallback ? gax.fallback : gax;
+    // If we're running in browser, it's OK to omit `fallback` since
+    // google-gax has `browser` field in its `package.json`.
+    // For Electron (which does not respect `browser` field),
+    // pass `{fallback: true}` to the DatastoreClient constructor.
+    this._gaxModule = opts.fallback ? gax.fallback : gax;
 
     // Create a `gaxGrpc` object, with any grpc-specific options
     // sent to the client.
@@ -148,7 +146,10 @@ export class DatastoreClient {
       'protos.json'
     );
     this._protos = this._gaxGrpc.loadProto(
-      opts.fallback ? require('../../protos/protos.json') : nodejsProtoPath
+      opts.fallback
+        ? // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require('../../protos/protos.json')
+        : nodejsProtoPath
     );
 
     // Put together the default options sent with requests.
@@ -162,7 +163,7 @@ export class DatastoreClient {
     // Set up a dictionary of "inner API calls"; the core implementation
     // of calling the API is handled in `google-gax`, with this code
     // merely providing the destination and request information.
-    this._innerApiCalls = {};
+    this.innerApiCalls = {};
   }
 
   /**
@@ -189,7 +190,7 @@ export class DatastoreClient {
         ? (this._protos as protobuf.Root).lookupService(
             'google.datastore.v1.Datastore'
           )
-        : // tslint:disable-next-line no-any
+        : // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (this._protos as any).google.datastore.v1.Datastore,
       this._opts
     ) as Promise<{[method: string]: Function}>;
@@ -205,9 +206,8 @@ export class DatastoreClient {
       'allocateIds',
       'reserveIds',
     ];
-
     for (const methodName of datastoreStubMethods) {
-      const innerCallPromise = this.datastoreStub.then(
+      const callPromise = this.datastoreStub.then(
         stub => (...args: Array<{}>) => {
           if (this._terminated) {
             return Promise.reject('The client has already been closed.');
@@ -221,20 +221,14 @@ export class DatastoreClient {
       );
 
       const apiCall = this._gaxModule.createApiCall(
-        innerCallPromise,
+        callPromise,
         this._defaults[methodName],
-        this._descriptors.page[methodName] ||
-          this._descriptors.stream[methodName] ||
-          this._descriptors.longrunning[methodName]
+        this.descriptors.page[methodName] ||
+          this.descriptors.stream[methodName] ||
+          this.descriptors.longrunning[methodName]
       );
 
-      this._innerApiCalls[methodName] = (
-        argument: {},
-        callOptions?: CallOptions,
-        callback?: APICallback
-      ) => {
-        return apiCall(argument, callOptions, callback);
-      };
+      this.innerApiCalls[methodName] = apiCall;
     }
 
     return this.datastoreStub;
@@ -294,22 +288,30 @@ export class DatastoreClient {
   // -- Service calls --
   // -------------------
   lookup(
-    request: protosTypes.google.datastore.v1.ILookupRequest,
+    request: protos.google.datastore.v1.ILookupRequest,
     options?: gax.CallOptions
   ): Promise<
     [
-      protosTypes.google.datastore.v1.ILookupResponse,
-      protosTypes.google.datastore.v1.ILookupRequest | undefined,
+      protos.google.datastore.v1.ILookupResponse,
+      protos.google.datastore.v1.ILookupRequest | undefined,
       {} | undefined
     ]
   >;
   lookup(
-    request: protosTypes.google.datastore.v1.ILookupRequest,
+    request: protos.google.datastore.v1.ILookupRequest,
     options: gax.CallOptions,
     callback: Callback<
-      protosTypes.google.datastore.v1.ILookupResponse,
-      protosTypes.google.datastore.v1.ILookupRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.ILookupResponse,
+      protos.google.datastore.v1.ILookupRequest | null | undefined,
+      {} | null | undefined
+    >
+  ): void;
+  lookup(
+    request: protos.google.datastore.v1.ILookupRequest,
+    callback: Callback<
+      protos.google.datastore.v1.ILookupResponse,
+      protos.google.datastore.v1.ILookupRequest | null | undefined,
+      {} | null | undefined
     >
   ): void;
   /**
@@ -330,23 +332,23 @@ export class DatastoreClient {
    *   The promise has a method named "cancel" which cancels the ongoing API call.
    */
   lookup(
-    request: protosTypes.google.datastore.v1.ILookupRequest,
+    request: protos.google.datastore.v1.ILookupRequest,
     optionsOrCallback?:
       | gax.CallOptions
       | Callback<
-          protosTypes.google.datastore.v1.ILookupResponse,
-          protosTypes.google.datastore.v1.ILookupRequest | undefined,
-          {} | undefined
+          protos.google.datastore.v1.ILookupResponse,
+          protos.google.datastore.v1.ILookupRequest | null | undefined,
+          {} | null | undefined
         >,
     callback?: Callback<
-      protosTypes.google.datastore.v1.ILookupResponse,
-      protosTypes.google.datastore.v1.ILookupRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.ILookupResponse,
+      protos.google.datastore.v1.ILookupRequest | null | undefined,
+      {} | null | undefined
     >
   ): Promise<
     [
-      protosTypes.google.datastore.v1.ILookupResponse,
-      protosTypes.google.datastore.v1.ILookupRequest | undefined,
+      protos.google.datastore.v1.ILookupResponse,
+      protos.google.datastore.v1.ILookupRequest | undefined,
       {} | undefined
     ]
   > | void {
@@ -359,26 +361,41 @@ export class DatastoreClient {
       options = optionsOrCallback as gax.CallOptions;
     }
     options = options || {};
+    options.otherArgs = options.otherArgs || {};
+    options.otherArgs.headers = options.otherArgs.headers || {};
+    options.otherArgs.headers[
+      'x-goog-request-params'
+    ] = gax.routingHeader.fromParams({
+      project_id: request.projectId || '',
+    });
     this.initialize();
-    return this._innerApiCalls.lookup(request, options, callback);
+    return this.innerApiCalls.lookup(request, options, callback);
   }
   runQuery(
-    request: protosTypes.google.datastore.v1.IRunQueryRequest,
+    request: protos.google.datastore.v1.IRunQueryRequest,
     options?: gax.CallOptions
   ): Promise<
     [
-      protosTypes.google.datastore.v1.IRunQueryResponse,
-      protosTypes.google.datastore.v1.IRunQueryRequest | undefined,
+      protos.google.datastore.v1.IRunQueryResponse,
+      protos.google.datastore.v1.IRunQueryRequest | undefined,
       {} | undefined
     ]
   >;
   runQuery(
-    request: protosTypes.google.datastore.v1.IRunQueryRequest,
+    request: protos.google.datastore.v1.IRunQueryRequest,
     options: gax.CallOptions,
     callback: Callback<
-      protosTypes.google.datastore.v1.IRunQueryResponse,
-      protosTypes.google.datastore.v1.IRunQueryRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.IRunQueryResponse,
+      protos.google.datastore.v1.IRunQueryRequest | null | undefined,
+      {} | null | undefined
+    >
+  ): void;
+  runQuery(
+    request: protos.google.datastore.v1.IRunQueryRequest,
+    callback: Callback<
+      protos.google.datastore.v1.IRunQueryResponse,
+      protos.google.datastore.v1.IRunQueryRequest | null | undefined,
+      {} | null | undefined
     >
   ): void;
   /**
@@ -406,23 +423,23 @@ export class DatastoreClient {
    *   The promise has a method named "cancel" which cancels the ongoing API call.
    */
   runQuery(
-    request: protosTypes.google.datastore.v1.IRunQueryRequest,
+    request: protos.google.datastore.v1.IRunQueryRequest,
     optionsOrCallback?:
       | gax.CallOptions
       | Callback<
-          protosTypes.google.datastore.v1.IRunQueryResponse,
-          protosTypes.google.datastore.v1.IRunQueryRequest | undefined,
-          {} | undefined
+          protos.google.datastore.v1.IRunQueryResponse,
+          protos.google.datastore.v1.IRunQueryRequest | null | undefined,
+          {} | null | undefined
         >,
     callback?: Callback<
-      protosTypes.google.datastore.v1.IRunQueryResponse,
-      protosTypes.google.datastore.v1.IRunQueryRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.IRunQueryResponse,
+      protos.google.datastore.v1.IRunQueryRequest | null | undefined,
+      {} | null | undefined
     >
   ): Promise<
     [
-      protosTypes.google.datastore.v1.IRunQueryResponse,
-      protosTypes.google.datastore.v1.IRunQueryRequest | undefined,
+      protos.google.datastore.v1.IRunQueryResponse,
+      protos.google.datastore.v1.IRunQueryRequest | undefined,
       {} | undefined
     ]
   > | void {
@@ -435,26 +452,41 @@ export class DatastoreClient {
       options = optionsOrCallback as gax.CallOptions;
     }
     options = options || {};
+    options.otherArgs = options.otherArgs || {};
+    options.otherArgs.headers = options.otherArgs.headers || {};
+    options.otherArgs.headers[
+      'x-goog-request-params'
+    ] = gax.routingHeader.fromParams({
+      project_id: request.projectId || '',
+    });
     this.initialize();
-    return this._innerApiCalls.runQuery(request, options, callback);
+    return this.innerApiCalls.runQuery(request, options, callback);
   }
   beginTransaction(
-    request: protosTypes.google.datastore.v1.IBeginTransactionRequest,
+    request: protos.google.datastore.v1.IBeginTransactionRequest,
     options?: gax.CallOptions
   ): Promise<
     [
-      protosTypes.google.datastore.v1.IBeginTransactionResponse,
-      protosTypes.google.datastore.v1.IBeginTransactionRequest | undefined,
+      protos.google.datastore.v1.IBeginTransactionResponse,
+      protos.google.datastore.v1.IBeginTransactionRequest | undefined,
       {} | undefined
     ]
   >;
   beginTransaction(
-    request: protosTypes.google.datastore.v1.IBeginTransactionRequest,
+    request: protos.google.datastore.v1.IBeginTransactionRequest,
     options: gax.CallOptions,
     callback: Callback<
-      protosTypes.google.datastore.v1.IBeginTransactionResponse,
-      protosTypes.google.datastore.v1.IBeginTransactionRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.IBeginTransactionResponse,
+      protos.google.datastore.v1.IBeginTransactionRequest | null | undefined,
+      {} | null | undefined
+    >
+  ): void;
+  beginTransaction(
+    request: protos.google.datastore.v1.IBeginTransactionRequest,
+    callback: Callback<
+      protos.google.datastore.v1.IBeginTransactionResponse,
+      protos.google.datastore.v1.IBeginTransactionRequest | null | undefined,
+      {} | null | undefined
     >
   ): void;
   /**
@@ -473,23 +505,25 @@ export class DatastoreClient {
    *   The promise has a method named "cancel" which cancels the ongoing API call.
    */
   beginTransaction(
-    request: protosTypes.google.datastore.v1.IBeginTransactionRequest,
+    request: protos.google.datastore.v1.IBeginTransactionRequest,
     optionsOrCallback?:
       | gax.CallOptions
       | Callback<
-          protosTypes.google.datastore.v1.IBeginTransactionResponse,
-          protosTypes.google.datastore.v1.IBeginTransactionRequest | undefined,
-          {} | undefined
+          protos.google.datastore.v1.IBeginTransactionResponse,
+          | protos.google.datastore.v1.IBeginTransactionRequest
+          | null
+          | undefined,
+          {} | null | undefined
         >,
     callback?: Callback<
-      protosTypes.google.datastore.v1.IBeginTransactionResponse,
-      protosTypes.google.datastore.v1.IBeginTransactionRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.IBeginTransactionResponse,
+      protos.google.datastore.v1.IBeginTransactionRequest | null | undefined,
+      {} | null | undefined
     >
   ): Promise<
     [
-      protosTypes.google.datastore.v1.IBeginTransactionResponse,
-      protosTypes.google.datastore.v1.IBeginTransactionRequest | undefined,
+      protos.google.datastore.v1.IBeginTransactionResponse,
+      protos.google.datastore.v1.IBeginTransactionRequest | undefined,
       {} | undefined
     ]
   > | void {
@@ -502,26 +536,41 @@ export class DatastoreClient {
       options = optionsOrCallback as gax.CallOptions;
     }
     options = options || {};
+    options.otherArgs = options.otherArgs || {};
+    options.otherArgs.headers = options.otherArgs.headers || {};
+    options.otherArgs.headers[
+      'x-goog-request-params'
+    ] = gax.routingHeader.fromParams({
+      project_id: request.projectId || '',
+    });
     this.initialize();
-    return this._innerApiCalls.beginTransaction(request, options, callback);
+    return this.innerApiCalls.beginTransaction(request, options, callback);
   }
   commit(
-    request: protosTypes.google.datastore.v1.ICommitRequest,
+    request: protos.google.datastore.v1.ICommitRequest,
     options?: gax.CallOptions
   ): Promise<
     [
-      protosTypes.google.datastore.v1.ICommitResponse,
-      protosTypes.google.datastore.v1.ICommitRequest | undefined,
+      protos.google.datastore.v1.ICommitResponse,
+      protos.google.datastore.v1.ICommitRequest | undefined,
       {} | undefined
     ]
   >;
   commit(
-    request: protosTypes.google.datastore.v1.ICommitRequest,
+    request: protos.google.datastore.v1.ICommitRequest,
     options: gax.CallOptions,
     callback: Callback<
-      protosTypes.google.datastore.v1.ICommitResponse,
-      protosTypes.google.datastore.v1.ICommitRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.ICommitResponse,
+      protos.google.datastore.v1.ICommitRequest | null | undefined,
+      {} | null | undefined
+    >
+  ): void;
+  commit(
+    request: protos.google.datastore.v1.ICommitRequest,
+    callback: Callback<
+      protos.google.datastore.v1.ICommitResponse,
+      protos.google.datastore.v1.ICommitRequest | null | undefined,
+      {} | null | undefined
     >
   ): void;
   /**
@@ -559,23 +608,23 @@ export class DatastoreClient {
    *   The promise has a method named "cancel" which cancels the ongoing API call.
    */
   commit(
-    request: protosTypes.google.datastore.v1.ICommitRequest,
+    request: protos.google.datastore.v1.ICommitRequest,
     optionsOrCallback?:
       | gax.CallOptions
       | Callback<
-          protosTypes.google.datastore.v1.ICommitResponse,
-          protosTypes.google.datastore.v1.ICommitRequest | undefined,
-          {} | undefined
+          protos.google.datastore.v1.ICommitResponse,
+          protos.google.datastore.v1.ICommitRequest | null | undefined,
+          {} | null | undefined
         >,
     callback?: Callback<
-      protosTypes.google.datastore.v1.ICommitResponse,
-      protosTypes.google.datastore.v1.ICommitRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.ICommitResponse,
+      protos.google.datastore.v1.ICommitRequest | null | undefined,
+      {} | null | undefined
     >
   ): Promise<
     [
-      protosTypes.google.datastore.v1.ICommitResponse,
-      protosTypes.google.datastore.v1.ICommitRequest | undefined,
+      protos.google.datastore.v1.ICommitResponse,
+      protos.google.datastore.v1.ICommitRequest | undefined,
       {} | undefined
     ]
   > | void {
@@ -588,26 +637,41 @@ export class DatastoreClient {
       options = optionsOrCallback as gax.CallOptions;
     }
     options = options || {};
+    options.otherArgs = options.otherArgs || {};
+    options.otherArgs.headers = options.otherArgs.headers || {};
+    options.otherArgs.headers[
+      'x-goog-request-params'
+    ] = gax.routingHeader.fromParams({
+      project_id: request.projectId || '',
+    });
     this.initialize();
-    return this._innerApiCalls.commit(request, options, callback);
+    return this.innerApiCalls.commit(request, options, callback);
   }
   rollback(
-    request: protosTypes.google.datastore.v1.IRollbackRequest,
+    request: protos.google.datastore.v1.IRollbackRequest,
     options?: gax.CallOptions
   ): Promise<
     [
-      protosTypes.google.datastore.v1.IRollbackResponse,
-      protosTypes.google.datastore.v1.IRollbackRequest | undefined,
+      protos.google.datastore.v1.IRollbackResponse,
+      protos.google.datastore.v1.IRollbackRequest | undefined,
       {} | undefined
     ]
   >;
   rollback(
-    request: protosTypes.google.datastore.v1.IRollbackRequest,
+    request: protos.google.datastore.v1.IRollbackRequest,
     options: gax.CallOptions,
     callback: Callback<
-      protosTypes.google.datastore.v1.IRollbackResponse,
-      protosTypes.google.datastore.v1.IRollbackRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.IRollbackResponse,
+      protos.google.datastore.v1.IRollbackRequest | null | undefined,
+      {} | null | undefined
+    >
+  ): void;
+  rollback(
+    request: protos.google.datastore.v1.IRollbackRequest,
+    callback: Callback<
+      protos.google.datastore.v1.IRollbackResponse,
+      protos.google.datastore.v1.IRollbackRequest | null | undefined,
+      {} | null | undefined
     >
   ): void;
   /**
@@ -627,23 +691,23 @@ export class DatastoreClient {
    *   The promise has a method named "cancel" which cancels the ongoing API call.
    */
   rollback(
-    request: protosTypes.google.datastore.v1.IRollbackRequest,
+    request: protos.google.datastore.v1.IRollbackRequest,
     optionsOrCallback?:
       | gax.CallOptions
       | Callback<
-          protosTypes.google.datastore.v1.IRollbackResponse,
-          protosTypes.google.datastore.v1.IRollbackRequest | undefined,
-          {} | undefined
+          protos.google.datastore.v1.IRollbackResponse,
+          protos.google.datastore.v1.IRollbackRequest | null | undefined,
+          {} | null | undefined
         >,
     callback?: Callback<
-      protosTypes.google.datastore.v1.IRollbackResponse,
-      protosTypes.google.datastore.v1.IRollbackRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.IRollbackResponse,
+      protos.google.datastore.v1.IRollbackRequest | null | undefined,
+      {} | null | undefined
     >
   ): Promise<
     [
-      protosTypes.google.datastore.v1.IRollbackResponse,
-      protosTypes.google.datastore.v1.IRollbackRequest | undefined,
+      protos.google.datastore.v1.IRollbackResponse,
+      protos.google.datastore.v1.IRollbackRequest | undefined,
       {} | undefined
     ]
   > | void {
@@ -656,26 +720,41 @@ export class DatastoreClient {
       options = optionsOrCallback as gax.CallOptions;
     }
     options = options || {};
+    options.otherArgs = options.otherArgs || {};
+    options.otherArgs.headers = options.otherArgs.headers || {};
+    options.otherArgs.headers[
+      'x-goog-request-params'
+    ] = gax.routingHeader.fromParams({
+      project_id: request.projectId || '',
+    });
     this.initialize();
-    return this._innerApiCalls.rollback(request, options, callback);
+    return this.innerApiCalls.rollback(request, options, callback);
   }
   allocateIds(
-    request: protosTypes.google.datastore.v1.IAllocateIdsRequest,
+    request: protos.google.datastore.v1.IAllocateIdsRequest,
     options?: gax.CallOptions
   ): Promise<
     [
-      protosTypes.google.datastore.v1.IAllocateIdsResponse,
-      protosTypes.google.datastore.v1.IAllocateIdsRequest | undefined,
+      protos.google.datastore.v1.IAllocateIdsResponse,
+      protos.google.datastore.v1.IAllocateIdsRequest | undefined,
       {} | undefined
     ]
   >;
   allocateIds(
-    request: protosTypes.google.datastore.v1.IAllocateIdsRequest,
+    request: protos.google.datastore.v1.IAllocateIdsRequest,
     options: gax.CallOptions,
     callback: Callback<
-      protosTypes.google.datastore.v1.IAllocateIdsResponse,
-      protosTypes.google.datastore.v1.IAllocateIdsRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.IAllocateIdsResponse,
+      protos.google.datastore.v1.IAllocateIdsRequest | null | undefined,
+      {} | null | undefined
+    >
+  ): void;
+  allocateIds(
+    request: protos.google.datastore.v1.IAllocateIdsRequest,
+    callback: Callback<
+      protos.google.datastore.v1.IAllocateIdsResponse,
+      protos.google.datastore.v1.IAllocateIdsRequest | null | undefined,
+      {} | null | undefined
     >
   ): void;
   /**
@@ -696,23 +775,23 @@ export class DatastoreClient {
    *   The promise has a method named "cancel" which cancels the ongoing API call.
    */
   allocateIds(
-    request: protosTypes.google.datastore.v1.IAllocateIdsRequest,
+    request: protos.google.datastore.v1.IAllocateIdsRequest,
     optionsOrCallback?:
       | gax.CallOptions
       | Callback<
-          protosTypes.google.datastore.v1.IAllocateIdsResponse,
-          protosTypes.google.datastore.v1.IAllocateIdsRequest | undefined,
-          {} | undefined
+          protos.google.datastore.v1.IAllocateIdsResponse,
+          protos.google.datastore.v1.IAllocateIdsRequest | null | undefined,
+          {} | null | undefined
         >,
     callback?: Callback<
-      protosTypes.google.datastore.v1.IAllocateIdsResponse,
-      protosTypes.google.datastore.v1.IAllocateIdsRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.IAllocateIdsResponse,
+      protos.google.datastore.v1.IAllocateIdsRequest | null | undefined,
+      {} | null | undefined
     >
   ): Promise<
     [
-      protosTypes.google.datastore.v1.IAllocateIdsResponse,
-      protosTypes.google.datastore.v1.IAllocateIdsRequest | undefined,
+      protos.google.datastore.v1.IAllocateIdsResponse,
+      protos.google.datastore.v1.IAllocateIdsRequest | undefined,
       {} | undefined
     ]
   > | void {
@@ -725,26 +804,41 @@ export class DatastoreClient {
       options = optionsOrCallback as gax.CallOptions;
     }
     options = options || {};
+    options.otherArgs = options.otherArgs || {};
+    options.otherArgs.headers = options.otherArgs.headers || {};
+    options.otherArgs.headers[
+      'x-goog-request-params'
+    ] = gax.routingHeader.fromParams({
+      project_id: request.projectId || '',
+    });
     this.initialize();
-    return this._innerApiCalls.allocateIds(request, options, callback);
+    return this.innerApiCalls.allocateIds(request, options, callback);
   }
   reserveIds(
-    request: protosTypes.google.datastore.v1.IReserveIdsRequest,
+    request: protos.google.datastore.v1.IReserveIdsRequest,
     options?: gax.CallOptions
   ): Promise<
     [
-      protosTypes.google.datastore.v1.IReserveIdsResponse,
-      protosTypes.google.datastore.v1.IReserveIdsRequest | undefined,
+      protos.google.datastore.v1.IReserveIdsResponse,
+      protos.google.datastore.v1.IReserveIdsRequest | undefined,
       {} | undefined
     ]
   >;
   reserveIds(
-    request: protosTypes.google.datastore.v1.IReserveIdsRequest,
+    request: protos.google.datastore.v1.IReserveIdsRequest,
     options: gax.CallOptions,
     callback: Callback<
-      protosTypes.google.datastore.v1.IReserveIdsResponse,
-      protosTypes.google.datastore.v1.IReserveIdsRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.IReserveIdsResponse,
+      protos.google.datastore.v1.IReserveIdsRequest | null | undefined,
+      {} | null | undefined
+    >
+  ): void;
+  reserveIds(
+    request: protos.google.datastore.v1.IReserveIdsRequest,
+    callback: Callback<
+      protos.google.datastore.v1.IReserveIdsResponse,
+      protos.google.datastore.v1.IReserveIdsRequest | null | undefined,
+      {} | null | undefined
     >
   ): void;
   /**
@@ -767,23 +861,23 @@ export class DatastoreClient {
    *   The promise has a method named "cancel" which cancels the ongoing API call.
    */
   reserveIds(
-    request: protosTypes.google.datastore.v1.IReserveIdsRequest,
+    request: protos.google.datastore.v1.IReserveIdsRequest,
     optionsOrCallback?:
       | gax.CallOptions
       | Callback<
-          protosTypes.google.datastore.v1.IReserveIdsResponse,
-          protosTypes.google.datastore.v1.IReserveIdsRequest | undefined,
-          {} | undefined
+          protos.google.datastore.v1.IReserveIdsResponse,
+          protos.google.datastore.v1.IReserveIdsRequest | null | undefined,
+          {} | null | undefined
         >,
     callback?: Callback<
-      protosTypes.google.datastore.v1.IReserveIdsResponse,
-      protosTypes.google.datastore.v1.IReserveIdsRequest | undefined,
-      {} | undefined
+      protos.google.datastore.v1.IReserveIdsResponse,
+      protos.google.datastore.v1.IReserveIdsRequest | null | undefined,
+      {} | null | undefined
     >
   ): Promise<
     [
-      protosTypes.google.datastore.v1.IReserveIdsResponse,
-      protosTypes.google.datastore.v1.IReserveIdsRequest | undefined,
+      protos.google.datastore.v1.IReserveIdsResponse,
+      protos.google.datastore.v1.IReserveIdsRequest | undefined,
       {} | undefined
     ]
   > | void {
@@ -796,8 +890,15 @@ export class DatastoreClient {
       options = optionsOrCallback as gax.CallOptions;
     }
     options = options || {};
+    options.otherArgs = options.otherArgs || {};
+    options.otherArgs.headers = options.otherArgs.headers || {};
+    options.otherArgs.headers[
+      'x-goog-request-params'
+    ] = gax.routingHeader.fromParams({
+      project_id: request.projectId || '',
+    });
     this.initialize();
-    return this._innerApiCalls.reserveIds(request, options, callback);
+    return this.innerApiCalls.reserveIds(request, options, callback);
   }
 
   /**

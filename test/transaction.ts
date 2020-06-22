@@ -15,20 +15,20 @@
 import * as pfy from '@google-cloud/promisify';
 import arrify = require('arrify');
 import * as assert from 'assert';
-import {describe, it} from 'mocha';
+import {beforeEach, before, describe, it} from 'mocha';
 import * as proxyquire from 'proxyquire';
-import * as sinon from 'sinon';
 
 // import {google} from '../proto/datastore';
 import {Datastore, Query, TransactionOptions} from '../src';
 import {Entity} from '../src/entity';
-import {CommitResponse, DatastoreRequest} from '../src/request';
+import {DatastoreRequest} from '../src/request';
 import * as tsTypes from '../src/transaction';
 
-// tslint:disable-next-line no-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
 type Path = string | [string] | [string, number];
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const {entity} = require('../src/entity');
 
 let promisified = false;
@@ -42,22 +42,21 @@ const fakePfy = Object.assign({}, pfy, {
   },
 });
 
-// tslint:disable-next-line variable-name
 const DatastoreRequestOverride = ({
   delete() {},
   save() {},
 } as {}) as DatastoreRequest;
 
 class FakeDatastoreRequest {
-  delete() {
-    const args = [].slice.apply(arguments);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  delete(...args: any[]) {
     const results = DatastoreRequestOverride.delete.apply(null, args as Any);
     DatastoreRequestOverride.delete = (() => {}) as Any;
     return results;
   }
 
-  save() {
-    const args = [].slice.apply(arguments);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  save(...args: any[]) {
     const results = DatastoreRequestOverride.save.apply(null, args as Any);
     DatastoreRequestOverride.save = (() => {}) as Any;
     return results;
@@ -65,7 +64,6 @@ class FakeDatastoreRequest {
 }
 
 describe('Transaction', () => {
-  // tslint:disable-next-line variable-name
   let Transaction: typeof tsTypes.Transaction;
   let transaction: tsTypes.Transaction;
   const TRANSACTION_ID = 'transaction-id';
@@ -100,10 +98,6 @@ describe('Transaction', () => {
 
     it('should localize the datastore instance', () => {
       assert.strictEqual(transaction.datastore, DATASTORE);
-    });
-
-    it('should localize the project ID', () => {
-      assert.strictEqual(transaction.projectId, PROJECT_ID);
     });
 
     it('should localize the namespace', () => {
@@ -355,7 +349,7 @@ describe('Transaction', () => {
       const args = ['0', '1']; // Query only accepts to accept string||null values
       const createQueryReturnValue = {};
 
-      transaction.datastore.createQuery = function(...ags: Any) {
+      transaction.datastore.createQuery = function (...ags: Any) {
         assert.strictEqual(this, transaction);
         assert.strictEqual(ags[0], args[0]);
         assert.strictEqual(ags[1], args[1]);

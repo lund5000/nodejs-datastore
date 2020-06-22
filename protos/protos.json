@@ -11,7 +11,8 @@
                 "java_multiple_files": true,
                 "java_outer_classname": "QueryProto",
                 "java_package": "com.google.datastore.v1",
-                "php_namespace": "Google\\Cloud\\Datastore\\V1"
+                "php_namespace": "Google\\Cloud\\Datastore\\V1",
+                "ruby_package": "Google::Cloud::Datastore::V1"
               },
               "nested": {
                 "Datastore": {
@@ -1216,6 +1217,10 @@
                 "options": {
                   "type": "FieldOptions",
                   "id": 8
+                },
+                "proto3Optional": {
+                  "type": "bool",
+                  "id": 17
                 }
               },
               "nested": {
@@ -1451,7 +1456,7 @@
                   "type": "bool",
                   "id": 31,
                   "options": {
-                    "default": false
+                    "default": true
                   }
                 },
                 "objcClassPrefix": {

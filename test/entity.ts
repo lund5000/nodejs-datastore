@@ -13,11 +13,11 @@
 // limitations under the License.
 
 import * as assert from 'assert';
-import {describe, it} from 'mocha';
+import {beforeEach, afterEach, describe, it} from 'mocha';
 import * as extend from 'extend';
 import * as sinon from 'sinon';
 import {Datastore} from '../src';
-import {Entity, entity, ValueProto} from '../src/entity';
+import {Entity} from '../src/entity';
 import {IntegerTypeCastOptions} from '../src/query';
 
 export function outOfBoundsError(opts: {
@@ -173,7 +173,7 @@ describe('entity', () => {
           };
 
           assert.doesNotThrow(() => {
-            const a = new entity.Int(valueProto);
+            new entity.Int(valueProto);
           }, new RegExp(`Integer value ${largeIntegerValue} is out of bounds.`));
         });
       });
@@ -321,7 +321,7 @@ describe('entity', () => {
 
     it('should not modify input path', () => {
       const inputPath = ['ParentKind', 1, 'Kind', 1];
-      const key = new entity.Key({path: inputPath});
+      new entity.Key({path: inputPath});
       assert.deepStrictEqual(inputPath, ['ParentKind', 1, 'Kind', 1]);
     });
 
@@ -751,7 +751,7 @@ describe('entity', () => {
         integerValue: value,
       };
 
-      entity.Int = function(value_: {}) {
+      entity.Int = function (value_: {}) {
         assert.strictEqual(value_, value);
         this.value = value_;
       };
@@ -793,7 +793,7 @@ describe('entity', () => {
         doubleValue: value,
       };
 
-      entity.Double = function(value_: {}) {
+      entity.Double = function (value_: {}) {
         assert.strictEqual(value_, value);
         this.value = value_;
       };
@@ -1512,12 +1512,11 @@ describe('entity', () => {
       const ent = entity.formatArray(results)[0];
 
       assert.deepStrictEqual(ent, expectedResults);
-      assert.strictEqual(ent[entity.KEY_SYMBOL], key);
     });
 
     describe('should pass `wrapNumbers` to entityFromEntityProto', () => {
       const results = [{entity: {}}];
-      // tslint:disable-next-line no-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let entityFromEntityProtoStub: any;
       let wrapNumbers: boolean | IntegerTypeCastOptions | undefined;
 
@@ -1622,7 +1621,8 @@ describe('entity', () => {
 
     it('should set the namespace', done => {
       entity.Key = class {
-        constructor(keyOptions: entity.KeyOptions) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        constructor(keyOptions: any) {
           assert.strictEqual(keyOptions.namespace, NAMESPACE);
           done();
         }
@@ -1632,7 +1632,8 @@ describe('entity', () => {
 
     it('should create a proper Key', done => {
       entity.Key = class {
-        constructor(keyOptions: entity.KeyOptions) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        constructor(keyOptions: any) {
           assert.deepStrictEqual(keyOptions, {
             namespace: NAMESPACE,
             path: ['Kind', new entity.Int(111), 'Kind2', 'name'],
@@ -1886,10 +1887,7 @@ describe('entity', () => {
       const startVal = Buffer.from('start');
       const endVal = Buffer.from('end');
 
-      const query = ds
-        .createQuery('Kind1')
-        .start(startVal)
-        .end(endVal);
+      const query = ds.createQuery('Kind1').start(startVal).end(endVal);
 
       const queryProto = entity.queryToQueryProto(query);
       assert.strictEqual(queryProto.endCursor, endVal);
@@ -1900,7 +1898,8 @@ describe('entity', () => {
   describe('UrlSafeKey', () => {
     const PROJECT_ID = 'grass-clump-479';
     const LOCATION_PREFIX = 's~';
-    let urlSafeKey: entity.URLSafeKey;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let urlSafeKey: any;
 
     beforeEach(() => {
       urlSafeKey = new entity.URLSafeKey();

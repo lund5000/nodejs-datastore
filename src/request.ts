@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import {replaceProjectIdToken} from '@google-cloud/projectify';
 import {promisifyAll} from '@google-cloud/promisify';
 import arrify = require('arrify');
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const concat = require('concat-stream');
 import * as extend from 'extend';
 import {split} from 'split-array-stream';
 import * as streamEvents from 'stream-events';
-import {google} from '../proto/datastore';
+import {google} from '../protos/protos';
 import {CallOptions} from 'google-gax';
 import {Transform} from 'stream';
 
@@ -49,7 +49,6 @@ import {
   RunQueryCallback,
 } from './query';
 import {Datastore} from '.';
-import {ServiceError} from '@grpc/grpc-js';
 
 /**
  * A map of read consistency values to proto codes.
@@ -399,7 +398,8 @@ class DatastoreRequest {
           delete: entity.keyToKeyProto(key),
         };
       }),
-    };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
 
     if (this.id) {
       this.requests_.push(reqOpts);
@@ -1301,7 +1301,13 @@ class DatastoreRequest {
     const transaction = this.datastore.transaction();
     transaction.run(async err => {
       if (err) {
-        transaction.rollback();
+        try {
+          await transaction.rollback();
+        } catch (error) {
+          // Provide the error & API response from the failed run to the user.
+          // Even a failed rollback should be transparent.
+          // RE: https://github.com/GoogleCloudPlatform/gcloud-node/pull/1369#discussion_r66833976
+        }
         callback!(err);
         return;
       }
@@ -1321,7 +1327,13 @@ class DatastoreRequest {
         const [response] = await transaction.commit();
         callback!(null, response);
       } catch (err) {
-        transaction.rollback();
+        try {
+          await transaction.rollback();
+        } catch (error) {
+          // Provide the error & API response from the failed commit to the user.
+          // Even a failed rollback should be transparent.
+          // RE: https://github.com/GoogleCloudPlatform/gcloud-node/pull/1369#discussion_r66833976
+        }
         callback!(err);
       }
     });
@@ -1345,9 +1357,7 @@ class DatastoreRequest {
 
     const isTransaction = this.id ? true : false;
     const method = config.method;
-    let reqOpts = extend(true, {}, config.reqOpts);
-
-    reqOpts.projectId = datastore.projectId;
+    const reqOpts = extend(true, {}, config.reqOpts);
 
     // Set properties to indicate if we're in a transaction or not.
     if (method === 'commit') {
@@ -1375,31 +1385,27 @@ class DatastoreRequest {
       };
     }
 
-    datastore.auth.getProjectId(
-      (err: GetProjectIdErr, projectId: ProjectId) => {
-        if (err) {
-          callback!(err);
-          return;
-        }
-
-        const clientName = config.client;
-
-        if (!datastore.clients_.has(clientName)) {
-          datastore.clients_.set(
-            clientName,
-            new gapic.v1[clientName](datastore.options)
-          );
-        }
-        const gaxClient = datastore.clients_.get(clientName);
-        reqOpts = replaceProjectIdToken(reqOpts, projectId!);
-        const gaxOpts = extend(true, {}, config.gaxOpts, {
-          headers: {
-            'google-cloud-resource-prefix': `projects/${projectId}`,
-          },
-        });
-        gaxClient![method](reqOpts, gaxOpts, callback);
+    datastore.auth.getProjectId((err, projectId) => {
+      if (err) {
+        callback!(err);
+        return;
       }
-    );
+      const clientName = config.client;
+      if (!datastore.clients_.has(clientName)) {
+        datastore.clients_.set(
+          clientName,
+          new gapic.v1[clientName](datastore.options)
+        );
+      }
+      const gaxClient = datastore.clients_.get(clientName);
+      reqOpts.projectId = projectId!;
+      const gaxOpts = extend(true, {}, config.gaxOpts, {
+        headers: {
+          'google-cloud-resource-prefix': `projects/${projectId}`,
+        },
+      });
+      gaxClient![method](reqOpts, gaxOpts, callback);
+    });
   }
 }
 
@@ -1432,12 +1438,11 @@ export interface AllocateIdsOptions {
   allocations?: number;
   gaxOptions?: CallOptions;
 }
-export interface CreateReadStreamOptions extends RunQueryOptions {}
+export type CreateReadStreamOptions = RunQueryOptions;
 export interface GetCallback {
   (err?: Error | null, entity?: Entities): void;
 }
 export type GetResponse = [Entities];
-export type GetProjectIdErr = Error | null | undefined;
 export interface Mutation {
   [key: string]: EntityProto;
 }
@@ -1449,11 +1454,10 @@ export interface PrepareEntityObjectResponse {
   data?: google.datastore.v1.Entity;
   method?: string;
 }
-export type ProjectId = string | null | undefined;
 export interface RequestCallback {
   (
     a?: Error | null,
-    // tslint:disable-next-line no-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     b?: any
   ): void;
 }
@@ -1475,23 +1479,23 @@ export interface RequestOptions {
   } | null;
   transaction?: string | null;
   mode?: string;
-  projectId?: ProjectId;
+  projectId?: string;
   query?: QueryProto;
 }
-export interface RunQueryStreamOptions extends RunQueryOptions {}
+export type RunQueryStreamOptions = RunQueryOptions;
 export interface CommitCallback {
   (err?: Error | null, resp?: google.datastore.v1.ICommitResponse): void;
 }
 export type CommitResponse = [google.datastore.v1.ICommitResponse];
-export interface SaveCallback extends CommitCallback {}
+export type SaveCallback = CommitCallback;
 export type SaveResponse = CommitResponse;
-export interface UpdateCallback extends CommitCallback {}
+export type UpdateCallback = CommitCallback;
 export type UpdateResponse = CommitResponse;
-export interface UpsertCallback extends CommitCallback {}
+export type UpsertCallback = CommitCallback;
 export type UpsertResponse = CommitResponse;
-export interface DeleteCallback extends CommitCallback {}
+export type DeleteCallback = CommitCallback;
 export type DeleteResponse = CommitResponse;
-export interface InsertCallback extends CommitCallback {}
+export type InsertCallback = CommitCallback;
 export type InsertResponse = CommitResponse;
 
 /*! Developer Documentation

@@ -765,10 +765,7 @@ class Query extends TestHelper {
     const datastore = this.datastore;
 
     // [START datastore_keys_only_query]
-    const query = datastore
-      .createQuery()
-      .select('__key__')
-      .limit(1);
+    const query = datastore.createQuery().select('__key__').limit(1);
     // [END datastore_keys_only_query]
 
     return this.datastore.runQuery(query);
@@ -1105,7 +1102,7 @@ class Transaction extends TestHelper {
         const [task] = await transaction.get(taskKey);
         if (task) {
           // The task entity already exists.
-          transaction.rollback();
+          await transaction.rollback();
         } else {
           // Create the task entity.
           transaction.save(taskEntity);
@@ -1113,7 +1110,7 @@ class Transaction extends TestHelper {
         }
         return taskEntity;
       } catch (err) {
-        transaction.rollback();
+        await transaction.rollback();
       }
     }
     // [END datastore_transactional_get_or_create]

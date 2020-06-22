@@ -1,3 +1,4 @@
+/* eslint-disable no-inner-declarations */
 // Copyright 2014 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +18,11 @@ import * as extend from 'extend';
 import * as is from 'is';
 import {Query, QueryProto, IntegerTypeCastOptions} from './query';
 import {PathType} from '.';
-import * as Protobuf from 'protobufjs';
+import {protobuf as Protobuf} from 'google-gax';
 import * as path from 'path';
-import * as appengine from '../proto/app_engine_key';
-import {google} from '../proto/datastore';
+import {google} from '../protos/protos';
 
-// tslint:disable-next-line no-namespace
+// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace entity {
   export interface InvalidKeyErrorOptions {
     code: string;
@@ -152,7 +152,7 @@ export namespace entity {
         this.typeCastFunction = typeCastOptions.integerTypeCastFunction;
         if (typeof typeCastOptions.integerTypeCastFunction !== 'function') {
           throw new Error(
-            `integerTypeCastFunction is not a function or was not provided.`
+            'integerTypeCastFunction is not a function or was not provided.'
           );
         }
 
@@ -161,7 +161,7 @@ export namespace entity {
           : undefined;
       }
     }
-    // tslint:disable-next-line no-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     valueOf(): any {
       let shouldCustomCast = this.typeCastFunction ? true : false;
       if (
@@ -506,7 +506,7 @@ export namespace entity {
 
     switch (valueType) {
       case 'arrayValue': {
-        // tslint:disable-next-line no-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return value.values.map((val: any) =>
           entity.decodeValueProto(val, wrapNumbers)
         );
@@ -564,7 +564,7 @@ export namespace entity {
    * //   stringValue: 'Hi'
    * // }
    */
-  // tslint:disable-next-line no-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export function encodeValue(value: any, property: string): ValueProto {
     const valueProto: ValueProto = {};
 
@@ -648,9 +648,7 @@ export namespace entity {
         value = extend(true, {}, value);
 
         for (const prop in value) {
-          if (value.hasOwnProperty(prop)) {
-            value[prop] = entity.encodeValue(value[prop], prop);
-          }
+          value[prop] = entity.encodeValue(value[prop], prop);
         }
       }
 
@@ -696,16 +694,15 @@ export namespace entity {
    * //   name: 'Stephen'
    * // }
    */
-  // tslint:disable-next-line no-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export function entityFromEntityProto(
     entityProto: EntityProto,
     wrapNumbers?: boolean | IntegerTypeCastOptions
   ) {
-    // tslint:disable-next-line no-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const entityObject: any = {};
     const properties = entityProto.properties || {};
 
-    // tslint:disable-next-line forin
     for (const property in properties) {
       const value = properties[property];
       value.propertyName = property;
@@ -757,7 +754,7 @@ export namespace entity {
           encoded[key] = entity.encodeValue(properties[key], key);
           return encoded;
         },
-        // tslint:disable-next-line no-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         {} as any
       ),
     };
@@ -828,7 +825,7 @@ export namespace entity {
         !hasWildCard
       ) {
         const array = entity.properties![firstPathPart].arrayValue;
-        // tslint:disable-next-line no-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         array.values.forEach((value: any) => {
           if (remainderPath === '') {
             // We want to exclude *this* array property, which is
@@ -849,7 +846,7 @@ export namespace entity {
         });
       } else if (firstPathPartIsArray && hasWildCard && remainderPath === '*') {
         const array = entity.properties![firstPathPart].arrayValue;
-        // tslint:disable-next-line no-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         array.values.forEach((value: any) => {
           if (value.entityValue) {
             excludePathFromEntity(value.entityValue, '.*');
@@ -942,7 +939,7 @@ export namespace entity {
     const MAX_DATASTORE_VALUE_LENGTH = 1500;
     if (Array.isArray(entities)) {
       for (const entry of entities) {
-        if (entry.name && entry.value) {
+        if (entry && entry.name && entry.value) {
           if (
             is.string(entry.value) &&
             Buffer.from(entry.value).length > MAX_DATASTORE_VALUE_LENGTH
@@ -1012,7 +1009,7 @@ export namespace entity {
    * });
    */
   export function keyFromKeyProto(keyProto: KeyProto): Key {
-    // tslint:disable-next-line no-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const keyOptions: any = {
       path: [],
     };
@@ -1067,7 +1064,7 @@ export namespace entity {
       });
     }
 
-    // tslint:disable-next-line no-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const keyProto: KeyProto = {
       path: [],
     };
@@ -1089,7 +1086,7 @@ export namespace entity {
         });
       }
 
-      // tslint:disable-next-line no-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pathElement: any = {
         kind: key.kind,
       };
@@ -1103,7 +1100,6 @@ export namespace entity {
       }
 
       keyProto.path!.unshift(pathElement);
-      // tslint:disable-next-line no-conditional-assignment
     } while ((key = key.parent!) && ++numKeysWalked);
 
     return keyProto;
@@ -1208,7 +1204,7 @@ export namespace entity {
 
     if (query.filters.length > 0) {
       const filters = query.filters.map(filter => {
-        // tslint:disable-next-line no-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let value: any = {};
 
         if (filter.name === '__key__') {
@@ -1249,7 +1245,7 @@ export namespace entity {
    * @class
    */
   export class URLSafeKey {
-    // tslint:disable-next-line no-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     protos: any;
 
     constructor() {
@@ -1288,11 +1284,11 @@ export namespace entity {
       key: entity.Key,
       locationPrefix?: string
     ): string {
-      const elements: appengine.Path.IElement[] = [];
+      const elements: {}[] = [];
       let currentKey = key;
 
       do {
-        // tslint:disable-next-line no-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const element: any = {
           type: currentKey.kind,
         };
@@ -1313,7 +1309,7 @@ export namespace entity {
         projectId = `${locationPrefix}${projectId}`;
       }
 
-      const reference: appengine.IReference = {
+      const reference = {
         app: projectId,
         namespace: key.namespace,
         path: {element: elements},
@@ -1346,7 +1342,8 @@ export namespace entity {
       });
       const pathElements: PathType[] = [];
 
-      reference.path.element.forEach((element: appengine.Path.Element) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reference.path.element.forEach((element: any) => {
         pathElements.push(element.type);
 
         if (is.defined(element.name)) {
@@ -1403,11 +1400,11 @@ export namespace entity {
 }
 
 export interface ValueProto {
-  // tslint:disable-next-line no-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [index: string]: any;
   valueType?: string;
   values?: ValueProto[];
-  // tslint:disable-next-line no-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   value?: any;
   propertyName?: string;
 }
@@ -1418,12 +1415,12 @@ export interface EntityProto {
   excludeFromIndexes?: boolean;
 }
 
-// tslint:disable-next-line no-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Entity = any;
 export type Entities = Entity | Entity[];
 
 interface KeyProtoPathElement extends google.datastore.v1.Key.IPathElement {
-  // tslint:disable-next-line no-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [index: string]: any;
   idType?: string;
 }

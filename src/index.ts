@@ -25,9 +25,13 @@
  */
 
 import arrify = require('arrify');
-import {GoogleAuth, GoogleAuthOptions} from 'google-auth-library';
-import {GrpcClient, ClientStub} from 'google-gax';
-import {ChannelCredentials} from '@grpc/grpc-js';
+import {
+  GrpcClient,
+  ClientStub,
+  ChannelCredentials,
+  GoogleAuth,
+  GoogleAuthOptions,
+} from 'google-gax';
 import * as is from 'is';
 
 import {entity} from './entity';
@@ -377,7 +381,6 @@ const urlSafeKey = new entity.URLSafeKey();
 class Datastore extends DatastoreRequest {
   clients_: Map<string, ClientStub>;
   namespace?: string;
-  projectId: string;
   defaultBaseUrl_: string;
   options: DatastoreOptions;
   baseUrl_?: string;
@@ -396,15 +399,7 @@ class Datastore extends DatastoreRequest {
      */
     this.namespace = options.namespace;
 
-    const userProvidedProjectId =
-      options.projectId || process.env.DATASTORE_PROJECT_ID;
-    const defaultProjectId = '{{projectId}}';
-
-    /**
-     * @name Datastore#projectId
-     * @type {string}
-     */
-    this.projectId = userProvidedProjectId || defaultProjectId;
+    options.projectId = options.projectId || process.env.DATASTORE_PROJECT_ID;
 
     this.defaultBaseUrl_ = 'datastore.googleapis.com';
     this.determineBaseUrl_(options.apiEndpoint);
@@ -415,8 +410,7 @@ class Datastore extends DatastoreRequest {
         libVersion: require('../../package.json').version,
         scopes: gapic.v1.DatastoreClient.scopes,
         servicePath: this.baseUrl_,
-        port: is.number(this.port_) ? this.port_ : 443,
-        projectId: userProvidedProjectId,
+        port: typeof this.port_ === 'number' ? this.port_ : 443,
       },
       options
     );
@@ -425,6 +419,10 @@ class Datastore extends DatastoreRequest {
     }
 
     this.auth = new GoogleAuth(this.options);
+  }
+
+  getProjectId(): Promise<string> {
+    return this.auth.getProjectId();
   }
 
   /**
@@ -1004,5 +1002,7 @@ export interface DatastoreOptions extends GoogleAuthOptions {
 export interface KeyToLegacyUrlSafeCallback {
   (err?: Error | null, urlSafeKey?: string): void;
 }
+const v1 = gapic.v1;
+export {v1};
 import * as protos from '../protos/protos';
 export {protos};

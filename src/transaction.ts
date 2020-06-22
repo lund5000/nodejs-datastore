@@ -18,7 +18,7 @@ import {promisifyAll} from '@google-cloud/promisify';
 import arrify = require('arrify');
 import {CallOptions} from 'google-gax';
 
-import {google} from '../proto/datastore';
+import {google} from '../protos/protos';
 
 import {Datastore, TransactionOptions} from '.';
 import {entity, Entity, Entities} from './entity';
@@ -49,7 +49,6 @@ import {
  * const transaction = datastore.transaction();
  */
 class Transaction extends DatastoreRequest {
-  projectId: string;
   namespace?: string;
   readOnly: boolean;
   request: Function;
@@ -63,11 +62,6 @@ class Transaction extends DatastoreRequest {
      */
     this.datastore = datastore;
 
-    /**
-     * @name Transaction#projectId
-     * @type {string}
-     */
-    this.projectId = datastore.projectId;
     /**
      * @name Transaction#namespace
      * @type {string}
@@ -372,7 +366,7 @@ class Transaction extends DatastoreRequest {
    *   });
    * });
    */
-  // tslint:disable-next-line no-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   delete(entities?: Entities): any {
     arrify(entities).forEach((ent: Entity) => {
       this.modifiedEntities_.push({
@@ -671,7 +665,7 @@ class Transaction extends DatastoreRequest {
    *   });
    * });
    */
-  // tslint:disable-next-line no-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   save(entities: Entities): any {
     arrify(entities).forEach((ent: Entity) => {
       this.modifiedEntities_.push({
